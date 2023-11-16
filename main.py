@@ -23,17 +23,18 @@ def get_db():
 @app.put("/stool-log")
 async def upsert_stool_log(log: model.StoolLogCreate,
                            db: model.Session = Depends(get_db)):
-    return model.upsert_stool_log(db, log)
+    model.upsert_stool_log(db, "test_user", log)
+
+
+@app.put("/food-log")
+async def upsert_food_log(log: model.FoodLogCreate,
+                          db: model.Session = Depends(get_db)):
+    model.upsert_food_log(db, "test_user", log)
 
 
 @app.get("/")
-def read_root():
+async def root():
     return {"Hello": "World!"}
-
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
 
 
 @app.exception_handler(RequestValidationError)

@@ -1,5 +1,7 @@
+import json
 import os
 from datetime import datetime
+from typing import List
 
 from pydantic import BaseModel
 from sqlalchemy import URL, Column, DateTime, Integer, String, create_engine
@@ -31,24 +33,61 @@ class StoolLogCreate(BaseModel):
         from_attributes = True
 
 
+class FoodLogCreate(BaseModel):
+    type: str
+    entryTime: datetime
+    createdTime: datetime
+    lastModifiedTime: datetime
+    meal: str
+    ingredients: List[str]
+
+    class Config:
+        from_attributes = True
+
+
 class StoolLog(Base):
     __tablename__ = "stool_logs"
 
     user_id = Column(String, primary_key=True)
-    entryTime = Column(DateTime, primary_key=True)
-    createdTime = Column(DateTime)
-    lastModifiedTime = Column(DateTime)
-    bristolType = Column(Integer)
+    entry_time = Column(DateTime)
+    created_time = Column(DateTime, primary_key=True)
+    last_modified_time = Column(DateTime)
+    bristol_type = Column(Integer)
 
 
-def upsert_stool_log(db: Session, log: StoolLogCreate) -> StoolLog:
+class FoodLog(Base):
+    __tablename__ = "food_logs"
+
+    user_id = Column(String, primary_key=True)
+    entry_time = Column(DateTime)
+    created_time = Column(DateTime, primary_key=True)
+    last_modified_time = Column(DateTime)
+    meal = Column(String)
+    ingredients = Column(String)
+
+
+def upsert_stool_log(db: Session, user_id: str, log: StoolLogCreate) -> None:
     print(log)
-    db_log = StoolLog(user_id="test_user",
-                      entryTime=log.entryTime,
-                      createdTime=log.createdTime,
-                      lastModifiedTime=log.lastModifiedTime,
-                      bristolType=log.bristolType)
+    db_log = StoolLog(
+        user_id=user_id,
+        entry_time=log.entryTime,
+        created_time=log.createdTime,
+        last_modified_time=log.lastModifiedTime,
+        bristol_type=log.bristolType,
+    )
     db.merge(db_log)
     db.commit()
-    db.refresh(db_log)
-    return db_log
+
+
+def upsert_food_log(db: Session, user_id: str, log: FoodLogCreate) -> None:
+    print(log)
+    db_log = FoodLog(
+        user_id=user_id,
+        entry_time=log.entryTime,
+        created_time=log.createdTime,
+        last_modified_time=log.lastModifiedTime,
+        meal=log.meal,
+        ingredients=json.dumps(log.ingredients),
+    )
+    db.merge(db_log)
+    db.commit()
