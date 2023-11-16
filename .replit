@@ -1,0 +1,13 @@
+run = ["uvicorn", "main:app", "--host", "0.0.0.0", "--reload"]
+modules = ["python-3.10:v18-20230807-322e88b"]
+
+hidden = [".pythonlibs"]
+
+disableGuessImports = true
+
+[nix]
+channel = "stable-23_05"
+
+[deployment]
+run = ["uvicorn", "main:app", "--host", "0.0.0.0"]
+deploymentTarget = "cloudrun"
