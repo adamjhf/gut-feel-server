@@ -1,10 +1,10 @@
 import json
 import os
 from datetime import datetime
-from typing import List
+from typing import List, Dict
 
 from pydantic import BaseModel
-from sqlalchemy import URL, Column, DateTime, Integer, String, create_engine
+from sqlalchemy import URL, Column, DateTime, Integer, String, create_engine, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -91,3 +91,18 @@ def upsert_food_log(db: Session, user_id: str, log: FoodLogCreate) -> None:
     )
     db.merge(db_log)
     db.commit()
+
+
+def get_meal_list(db: Session, search: str,
+                  user_id: str) -> Dict[str, List[str]]:
+    row_num = func.row_number() \
+        .over(partition_by=FoodLog.meal,
+              order_by=FoodLog.entry_time.desc()) \
+        .label("row_num")
+    subq = db.query(FoodLog.meal, FoodLog.ingredients, row_num) \
+        .filter(FoodLog.user_id == user_id) \
+        .filter(FoodLog.meal.ilike(f"%{search}%")) \
+        .subquery()
+    q = db.query(subq).filter(subq.c.row_num == 1)
+
+    return {meal.meal: json.loads(meal.ingredients) for meal in q.all()}
