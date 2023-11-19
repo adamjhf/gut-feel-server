@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime
-from typing import List, Dict
+from typing import Dict, List
 
 from pydantic import BaseModel
 from sqlalchemy import URL, Column, DateTime, Integer, String, create_engine, func
@@ -43,6 +43,11 @@ class FoodLogCreate(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class MealSearchResult(BaseModel):
+    meal: str
+    ingredients: List[str]
 
 
 class StoolLog(Base):
@@ -94,15 +99,20 @@ def upsert_food_log(db: Session, user_id: str, log: FoodLogCreate) -> None:
 
 
 def get_meal_list(db: Session, search: str,
-                  user_id: str) -> Dict[str, List[str]]:
+                  user_id: str) -> List[MealSearchResult]:
     row_num = func.row_number() \
         .over(partition_by=FoodLog.meal,
               order_by=FoodLog.entry_time.desc()) \
         .label("row_num")
-    subq = db.query(FoodLog.meal, FoodLog.ingredients, row_num) \
+    subq = db.query(FoodLog.meal, FoodLog.ingredients, row_num,
+                   func.count().over(partition_by=FoodLog.meal).label("cnt")) \
         .filter(FoodLog.user_id == user_id) \
         .filter(FoodLog.meal.ilike(f"%{search}%")) \
         .subquery()
-    q = db.query(subq).filter(subq.c.row_num == 1)
+    q = db.query(subq).filter(subq.c.row_num == 1).order_by(subq.c.cnt.desc())
 
-    return {meal.meal: json.loads(meal.ingredients) for meal in q.all()}
+    return [
+        MealSearchResult(meal=meal.meal,
+                         ingredients=json.loads(meal.ingredients))
+        for meal in q.all()
+    ]
