@@ -1,5 +1,5 @@
 import logging
-from typing import Union
+from typing import List
 
 from fastapi import Depends, FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -41,6 +41,12 @@ async def upsert_food_log(log: model.FoodLogCreate,
 async def get_meal_list(search: str = "", db: model.Session = Depends(get_db)):
     user_id = "test_user"
     return model.get_meal_list(db, search, user_id)
+
+
+@app.put("/sync-local-logs")
+async def upsert_logs(logs: List[model.FoodLogCreate | model.StoolLogCreate],
+                      db: model.Session = Depends(get_db)):
+    model.upsert_logs(db, "test_user", logs)
 
 
 @app.get("/")

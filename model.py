@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime
-from typing import Dict, List
+from typing import List
 
 from pydantic import BaseModel
 from sqlalchemy import URL, Column, DateTime, Integer, String, create_engine, func
@@ -71,8 +71,10 @@ class FoodLog(Base):
     ingredients = Column(String)
 
 
-def upsert_stool_log(db: Session, user_id: str, log: StoolLogCreate) -> None:
-    print(log)
+def upsert_stool_log(db: Session,
+                     user_id: str,
+                     log: StoolLogCreate,
+                     commit: bool = True) -> None:
     db_log = StoolLog(
         user_id=user_id,
         entry_time=log.entryTime,
@@ -81,11 +83,14 @@ def upsert_stool_log(db: Session, user_id: str, log: StoolLogCreate) -> None:
         bristol_type=log.bristolType,
     )
     db.merge(db_log)
-    db.commit()
+    if commit:
+        db.commit()
 
 
-def upsert_food_log(db: Session, user_id: str, log: FoodLogCreate) -> None:
-    print(log)
+def upsert_food_log(db: Session,
+                    user_id: str,
+                    log: FoodLogCreate,
+                    commit: bool = True) -> None:
     db_log = FoodLog(
         user_id=user_id,
         entry_time=log.entryTime,
@@ -95,7 +100,8 @@ def upsert_food_log(db: Session, user_id: str, log: FoodLogCreate) -> None:
         ingredients=json.dumps(log.ingredients),
     )
     db.merge(db_log)
-    db.commit()
+    if commit:
+        db.commit()
 
 
 def get_meal_list(db: Session, search: str,
@@ -116,3 +122,15 @@ def get_meal_list(db: Session, search: str,
                          ingredients=json.loads(meal.ingredients))
         for meal in q.all()
     ]
+
+
+def upsert_logs(db: Session, user_id: str,
+                logs: List[FoodLogCreate | StoolLogCreate]) -> None:
+    for log in logs:
+        if isinstance(log, StoolLogCreate):
+            upsert_stool_log(db, user_id, log, False)
+        elif isinstance(log, FoodLogCreate):
+            upsert_food_log(db, user_id, log, False)
+        else:
+            raise Exception("Invalid log type")
+    db.commit()
