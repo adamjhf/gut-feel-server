@@ -91,6 +91,8 @@ def upsert_food_log(db: Session,
                     user_id: str,
                     log: FoodLogCreate,
                     commit: bool = True) -> None:
+    if log.meal == "" or len(log.ingredients) == 0:
+        raise Exception("meal or ingredients cannot be empty")
     db_log = FoodLog(
         user_id=user_id,
         entry_time=log.entryTime,
