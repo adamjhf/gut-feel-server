@@ -26,13 +26,13 @@ def get_db():
 
 
 @app.put("/stool-log")
-async def upsert_stool_log(log: model.StoolLogCreate,
+async def upsert_stool_log(log: model.StoolLogUpsert,
                            db: model.Session = Depends(get_db)):
     model.upsert_stool_log(db, "test_user", log)
 
 
 @app.put("/food-log")
-async def upsert_food_log(log: model.FoodLogCreate,
+async def upsert_food_log(log: model.FoodLogUpsert,
                           db: model.Session = Depends(get_db)):
     model.upsert_food_log(db, "test_user", log)
 
@@ -44,7 +44,7 @@ async def get_meal_list(search: str = "", db: model.Session = Depends(get_db)):
 
 
 @app.put("/sync-local-logs")
-async def upsert_logs(logs: List[model.FoodLogCreate | model.StoolLogCreate],
+async def upsert_logs(logs: List[model.FoodLogUpsert | model.StoolLogUpsert],
                       db: model.Session = Depends(get_db)):
     model.upsert_logs(db, "test_user", logs)
 

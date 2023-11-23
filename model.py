@@ -4,7 +4,16 @@ from datetime import datetime
 from typing import List
 
 from pydantic import BaseModel
-from sqlalchemy import URL, Column, DateTime, Integer, String, create_engine, func
+from sqlalchemy import (
+    URL,
+    Boolean,
+    Column,
+    DateTime,
+    Integer,
+    String,
+    create_engine,
+    func,
+)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -22,22 +31,24 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-class StoolLogCreate(BaseModel):
+class StoolLogUpsert(BaseModel):
     type: str
     entryTime: datetime
     createdTime: datetime
     lastModifiedTime: datetime
     bristolType: int
+    deleted: bool
 
     class Config:
         from_attributes = True
 
 
-class FoodLogCreate(BaseModel):
+class FoodLogUpsert(BaseModel):
     type: str
     entryTime: datetime
     createdTime: datetime
     lastModifiedTime: datetime
+    deleted: bool
     meal: str
     ingredients: List[str]
 
@@ -58,6 +69,7 @@ class StoolLog(Base):
     created_time = Column(DateTime, primary_key=True)
     last_modified_time = Column(DateTime)
     bristol_type = Column(Integer)
+    deleted = Column(Boolean)
 
 
 class FoodLog(Base):
@@ -69,11 +81,12 @@ class FoodLog(Base):
     last_modified_time = Column(DateTime)
     meal = Column(String)
     ingredients = Column(String)
+    deleted = Column(Boolean)
 
 
 def upsert_stool_log(db: Session,
                      user_id: str,
-                     log: StoolLogCreate,
+                     log: StoolLogUpsert,
                      commit: bool = True) -> None:
     db_log = StoolLog(
         user_id=user_id,
@@ -81,6 +94,7 @@ def upsert_stool_log(db: Session,
         created_time=log.createdTime,
         last_modified_time=log.lastModifiedTime,
         bristol_type=log.bristolType,
+        deleted=log.deleted,
     )
     db.merge(db_log)
     if commit:
@@ -89,7 +103,7 @@ def upsert_stool_log(db: Session,
 
 def upsert_food_log(db: Session,
                     user_id: str,
-                    log: FoodLogCreate,
+                    log: FoodLogUpsert,
                     commit: bool = True) -> None:
     if log.meal == "" or len(log.ingredients) == 0:
         raise Exception("meal or ingredients cannot be empty")
@@ -100,6 +114,7 @@ def upsert_food_log(db: Session,
         last_modified_time=log.lastModifiedTime,
         meal=log.meal,
         ingredients=json.dumps(log.ingredients),
+        deleted=log.deleted,
     )
     db.merge(db_log)
     if commit:
@@ -127,11 +142,11 @@ def get_meal_list(db: Session, search: str,
 
 
 def upsert_logs(db: Session, user_id: str,
-                logs: List[FoodLogCreate | StoolLogCreate]) -> None:
+                logs: List[FoodLogUpsert | StoolLogUpsert]) -> None:
     for log in logs:
-        if isinstance(log, StoolLogCreate):
+        if isinstance(log, StoolLogUpsert):
             upsert_stool_log(db, user_id, log, False)
-        elif isinstance(log, FoodLogCreate):
+        elif isinstance(log, FoodLogUpsert):
             upsert_food_log(db, user_id, log, False)
         else:
             raise Exception("Invalid log type")
