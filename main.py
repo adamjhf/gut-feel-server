@@ -37,13 +37,13 @@ async def get_current_user(
         token: Annotated[str, Depends(oauth2_scheme)]) -> str:
     try:
         pub_key = jwk_client.get_signing_key_from_jwt(token).key
-        payload = jwt.decode(token,
-                             pub_key,
-                             algorithms=["RS256"],
-                             audience=project_id,
-                             iss="https://securetoken.google.com/" +
-                             project_id,
-                             require=["iss", "aud", "sub", "exp", "iat"])
+        payload = jwt.decode(
+            token,
+            pub_key,
+            algorithms=["RS256"],
+            audience=project_id,
+            issuer="https://securetoken.google.com/" + project_id,
+            require=["iss", "aud", "sub", "exp", "iat", "auth_time"])
         return payload["user_id"]
     except Exception as error:
         print("Error decoding token:", error)
