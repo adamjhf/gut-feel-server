@@ -1,10 +1,8 @@
-import json
 import logging
 import os
 from typing import Annotated, List
 
-import firebase_admin
-import firebase_admin.auth
+import jwt
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -20,14 +18,11 @@ model.Base.metadata.create_all(bind=model.engine)
 
 app = FastAPI()
 add_timing_middleware(app, record=logger.debug, exclude="untimed")
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-with open("service-account-key-template.json", "r") as f:
-    cert = json.load(f)
-
-cert["private_key"] = str(os.getenv("GOOGLE_PRIVATE_KEY")).replace("\\n", "\n")
-cred = firebase_admin.credentials.Certificate(cert)
-firebase_app = firebase_admin.initialize_app(cred)
+jwks_url = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"
+project_id = str(os.getenv("PROJECT_ID"))
+jwk_client = jwt.PyJWKClient(jwks_url)
 
 
 def get_db():
@@ -41,10 +36,17 @@ def get_db():
 async def get_current_user(
         token: Annotated[str, Depends(oauth2_scheme)]) -> str:
     try:
-        payload = firebase_admin.auth.verify_id_token(token,
-                                                      check_revoked=True)
-        return payload["uid"]
-    except:
+        pub_key = jwk_client.get_signing_key_from_jwt(token).key
+        payload = jwt.decode(token,
+                             pub_key,
+                             algorithms=["RS256"],
+                             audience=project_id,
+                             iss="https://securetoken.google.com/" +
+                             project_id,
+                             require=["iss", "aud", "sub", "exp", "iat"])
+        return payload["user_id"]
+    except Exception as error:
+        print("Error decoding token:", error)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
@@ -53,15 +55,19 @@ async def get_current_user(
 
 
 @app.put("/stool-log")
-async def upsert_stool_log(log: model.StoolLogUpsert,
+async def upsert_stool_log(user_id: Annotated[str,
+                                              Depends(get_current_user)],
+                           log: model.StoolLogUpsert,
                            db: model.Session = Depends(get_db)):
-    model.upsert_stool_log(db, "test_user", log)
+    model.upsert_stool_log(db, user_id, log)
 
 
 @app.put("/food-log")
-async def upsert_food_log(log: model.FoodLogUpsert,
+async def upsert_food_log(user_id: Annotated[str,
+                                             Depends(get_current_user)],
+                          log: model.FoodLogUpsert,
                           db: model.Session = Depends(get_db)):
-    model.upsert_food_log(db, "test_user", log)
+    model.upsert_food_log(db, user_id, log)
 
 
 @app.get("/meal-list")
@@ -74,9 +80,10 @@ async def get_meal_list(
 
 
 @app.put("/sync-local-logs")
-async def upsert_logs(logs: List[model.FoodLogUpsert | model.StoolLogUpsert],
+async def upsert_logs(user_id: Annotated[str, Depends(get_current_user)],
+                      logs: List[model.FoodLogUpsert | model.StoolLogUpsert],
                       db: model.Session = Depends(get_db)):
-    model.upsert_logs(db, "test_user", logs)
+    model.upsert_logs(db, user_id, logs)
 
 
 @app.get("/")
