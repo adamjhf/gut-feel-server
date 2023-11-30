@@ -1,9 +1,14 @@
+import json
 import logging
-from typing import List
+import os
+from typing import Annotated, List
 
-from fastapi import Depends, FastAPI, Request, status
+import firebase_admin
+import firebase_admin.auth
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.security import OAuth2PasswordBearer
 from fastapi_restful.timing import add_timing_middleware
 
 import model
@@ -15,6 +20,14 @@ model.Base.metadata.create_all(bind=model.engine)
 
 app = FastAPI()
 add_timing_middleware(app, record=logger.debug, exclude="untimed")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+with open("service-account-key-template.json", "r") as f:
+    cert = json.load(f)
+
+cert["private_key"] = str(os.getenv("GOOGLE_PRIVATE_KEY")).replace("\\n", "\n")
+cred = firebase_admin.credentials.Certificate(cert)
+firebase_app = firebase_admin.initialize_app(cred)
 
 
 def get_db():
@@ -23,6 +36,20 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+async def get_current_user(
+        token: Annotated[str, Depends(oauth2_scheme)]) -> str:
+    try:
+        payload = firebase_admin.auth.verify_id_token(token,
+                                                      check_revoked=True)
+        return payload["uid"]
+    except:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from None
 
 
 @app.put("/stool-log")
@@ -38,8 +65,11 @@ async def upsert_food_log(log: model.FoodLogUpsert,
 
 
 @app.get("/meal-list")
-async def get_meal_list(search: str = "", db: model.Session = Depends(get_db)):
-    user_id = "test_user"
+async def get_meal_list(
+        user_id: Annotated[str, Depends(get_current_user)],
+        search: str = "",
+        db: model.Session = Depends(get_db),
+):
     return model.get_meal_list(db, search, user_id)
 
 
