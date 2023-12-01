@@ -3,10 +3,10 @@ import os
 from typing import Annotated, List
 
 import jwt
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status  # type: ignore
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.responses import JSONResponse  # type: ignore
+from fastapi.security import OAuth2PasswordBearer  # type: ignore
 from fastapi_restful.timing import add_timing_middleware
 
 import model
