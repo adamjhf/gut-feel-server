@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Annotated, List
+from typing import Annotated
 
 import jwt
 from fastapi import Depends, FastAPI, HTTPException, Request, status  # type: ignore
@@ -79,17 +79,17 @@ async def get_meal_list(
     return model.get_meal_list(db, search, user_id)
 
 
-@app.put("/sync-local-logs")
+@app.put("/logs")
 async def upsert_logs(user_id: Annotated[str, Depends(get_current_user)],
-                      logs: List[model.FoodLogModel | model.StoolLogModel],
+                      logs: list[model.FoodLogModel | model.StoolLogModel],
                       db: model.Session = Depends(get_db)):
     model.upsert_logs(db, user_id, logs)
 
 
-@app.get("/all-logs")
-async def get_all_logs(user_id: Annotated[str, Depends(get_current_user)],
-                       db: model.Session = Depends(get_db)):
-    return model.get_all_logs(db, user_id)
+@app.get("/logs")
+async def get_logs(user_id: Annotated[str, Depends(get_current_user)],
+                   db: model.Session = Depends(get_db)):
+    return model.get_logs(db, user_id)
 
 
 @app.get("/")

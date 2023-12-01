@@ -1,7 +1,6 @@
 import json
 import os
 from datetime import datetime
-from typing import List
 
 from pydantic import BaseModel
 from sqlalchemy import (
@@ -50,7 +49,7 @@ class FoodLogModel(BaseModel):
     lastModifiedTime: datetime
     deleted: bool
     meal: str
-    ingredients: List[str]
+    ingredients: list[str]
 
     class Config:
         from_attributes = True
@@ -58,7 +57,7 @@ class FoodLogModel(BaseModel):
 
 class MealSearchResult(BaseModel):
     meal: str
-    ingredients: List[str]
+    ingredients: list[str]
 
 
 class StoolLog(Base):
@@ -122,7 +121,7 @@ def upsert_food_log(db: Session,
 
 
 def get_meal_list(db: Session, search: str,
-                  user_id: str) -> List[MealSearchResult]:
+                  user_id: str) -> list[MealSearchResult]:
     row_num = func.row_number() \
         .over(partition_by=FoodLog.meal,
               order_by=FoodLog.entry_time.desc()) \
@@ -142,7 +141,7 @@ def get_meal_list(db: Session, search: str,
 
 
 def upsert_logs(db: Session, user_id: str,
-                logs: List[FoodLogModel | StoolLogModel]) -> None:
+                logs: list[FoodLogModel | StoolLogModel]) -> None:
     for log in logs:
         if isinstance(log, StoolLogModel):
             upsert_stool_log(db, user_id, log, False)
@@ -153,8 +152,7 @@ def upsert_logs(db: Session, user_id: str,
     db.commit()
 
 
-def get_all_logs(db: Session,
-                 user_id: str) -> List[FoodLogModel | StoolLogModel]:
+def get_logs(db: Session, user_id: str) -> list[FoodLogModel | StoolLogModel]:
     stool_logs = db.query(StoolLog).filter(StoolLog.user_id == user_id).all()
     food_logs = db.query(FoodLog).filter(FoodLog.user_id == user_id).all()
     return sorted([
