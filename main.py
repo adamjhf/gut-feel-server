@@ -57,7 +57,7 @@ async def get_current_user(
 @app.put("/stool-log")
 async def upsert_stool_log(user_id: Annotated[str,
                                               Depends(get_current_user)],
-                           log: model.StoolLogUpsert,
+                           log: model.StoolLogModel,
                            db: model.Session = Depends(get_db)):
     model.upsert_stool_log(db, user_id, log)
 
@@ -65,7 +65,7 @@ async def upsert_stool_log(user_id: Annotated[str,
 @app.put("/food-log")
 async def upsert_food_log(user_id: Annotated[str,
                                              Depends(get_current_user)],
-                          log: model.FoodLogUpsert,
+                          log: model.FoodLogModel,
                           db: model.Session = Depends(get_db)):
     model.upsert_food_log(db, user_id, log)
 
@@ -81,7 +81,7 @@ async def get_meal_list(
 
 @app.put("/sync-local-logs")
 async def upsert_logs(user_id: Annotated[str, Depends(get_current_user)],
-                      logs: List[model.FoodLogUpsert | model.StoolLogUpsert],
+                      logs: List[model.FoodLogModel | model.StoolLogModel],
                       db: model.Session = Depends(get_db)):
     model.upsert_logs(db, user_id, logs)
 

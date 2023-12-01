@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from typing import List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy import (
     URL,
     Boolean,
@@ -31,7 +31,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-class StoolLogUpsert(BaseModel):
+class StoolLogModel(BaseModel):
     type: str
     entryTime: datetime
     createdTime: datetime
@@ -43,7 +43,7 @@ class StoolLogUpsert(BaseModel):
         from_attributes = True
 
 
-class FoodLogUpsert(BaseModel):
+class FoodLogModel(BaseModel):
     type: str
     entryTime: datetime
     createdTime: datetime
@@ -86,7 +86,7 @@ class FoodLog(Base):
 
 def upsert_stool_log(db: Session,
                      user_id: str,
-                     log: StoolLogUpsert,
+                     log: StoolLogModel,
                      commit: bool = True) -> None:
     db_log = StoolLog(
         user_id=user_id,
@@ -103,7 +103,7 @@ def upsert_stool_log(db: Session,
 
 def upsert_food_log(db: Session,
                     user_id: str,
-                    log: FoodLogUpsert,
+                    log: FoodLogModel,
                     commit: bool = True) -> None:
     if log.meal == "" or len(log.ingredients) == 0:
         raise Exception("meal or ingredients cannot be empty")
@@ -142,11 +142,11 @@ def get_meal_list(db: Session, search: str,
 
 
 def upsert_logs(db: Session, user_id: str,
-                logs: List[FoodLogUpsert | StoolLogUpsert]) -> None:
+                logs: List[FoodLogModel | StoolLogModel]) -> None:
     for log in logs:
-        if isinstance(log, StoolLogUpsert):
+        if isinstance(log, StoolLogModel):
             upsert_stool_log(db, user_id, log, False)
-        elif isinstance(log, FoodLogUpsert):
+        elif isinstance(log, FoodLogModel):
             upsert_food_log(db, user_id, log, False)
         else:
             raise Exception("Invalid log type")
@@ -154,24 +154,24 @@ def upsert_logs(db: Session, user_id: str,
 
 
 def get_all_logs(db: Session,
-                 user_id: str) -> List[FoodLogUpsert | StoolLogUpsert]:
+                 user_id: str) -> List[FoodLogModel | StoolLogModel]:
     stool_logs = db.query(StoolLog).filter(StoolLog.user_id == user_id).all()
     food_logs = db.query(FoodLog).filter(FoodLog.user_id == user_id).all()
     return sorted([
-        StoolLogUpsert(type="stool",
-                       entryTime=s.entry_time,
-                       createdTime=s.created_time,
-                       lastModifiedTime=s.last_modified_time,
-                       bristolType=s.bristol_type,
-                       deleted=s.deleted) for s in stool_logs
+        StoolLogModel(type="stool",
+                      entryTime=s.entry_time,
+                      createdTime=s.created_time,
+                      lastModifiedTime=s.last_modified_time,
+                      bristolType=s.bristol_type,
+                      deleted=s.deleted) for s in stool_logs
     ] + [
-        FoodLogUpsert(type="food",
-                      entryTime=f.entry_time,
-                      createdTime=f.created_time,
-                      lastModifiedTime=f.last_modified_time,
-                      meal=f.meal,
-                      ingredients=json.loads(f.ingredients),
-                      deleted=f.deleted) for f in food_logs
+        FoodLogModel(type="food",
+                     entryTime=f.entry_time,
+                     createdTime=f.created_time,
+                     lastModifiedTime=f.last_modified_time,
+                     meal=f.meal,
+                     ingredients=json.loads(f.ingredients),
+                     deleted=f.deleted) for f in food_logs
     ],
                   key=lambda x: x.entryTime,
                   reverse=True)
