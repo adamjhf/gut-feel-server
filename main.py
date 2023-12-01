@@ -86,6 +86,12 @@ async def upsert_logs(user_id: Annotated[str, Depends(get_current_user)],
     model.upsert_logs(db, user_id, logs)
 
 
+@app.get("/all-logs")
+async def get_all_logs(user_id: Annotated[str, Depends(get_current_user)],
+                       db: model.Session = Depends(get_db)):
+    return model.get_all_logs(db, user_id)
+
+
 @app.get("/")
 async def root():
     return {"Hello": "World!"}

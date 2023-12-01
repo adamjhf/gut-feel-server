@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from typing import List
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import (
     URL,
     Boolean,
@@ -151,3 +151,27 @@ def upsert_logs(db: Session, user_id: str,
         else:
             raise Exception("Invalid log type")
     db.commit()
+
+
+def get_all_logs(db: Session,
+                 user_id: str) -> List[FoodLogUpsert | StoolLogUpsert]:
+    stool_logs = db.query(StoolLog).filter(StoolLog.user_id == user_id).all()
+    food_logs = db.query(FoodLog).filter(FoodLog.user_id == user_id).all()
+    return sorted([
+        StoolLogUpsert(type="stool",
+                       entryTime=s.entry_time,
+                       createdTime=s.created_time,
+                       lastModifiedTime=s.last_modified_time,
+                       bristolType=s.bristol_type,
+                       deleted=s.deleted) for s in stool_logs
+    ] + [
+        FoodLogUpsert(type="food",
+                      entryTime=f.entry_time,
+                      createdTime=f.created_time,
+                      lastModifiedTime=f.last_modified_time,
+                      meal=f.meal,
+                      ingredients=json.loads(f.ingredients),
+                      deleted=f.deleted) for f in food_logs
+    ],
+                  key=lambda x: x.entryTime,
+                  reverse=True)
