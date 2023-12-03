@@ -2,7 +2,7 @@ import json
 import os
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, AwareDatetime
 from sqlalchemy import (
     URL,
     Boolean,
@@ -40,6 +40,9 @@ class StoolLogModel(BaseModel):
 
     class Config:
         from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        }
 
 
 class FoodLogModel(BaseModel):
@@ -53,6 +56,9 @@ class FoodLogModel(BaseModel):
 
     class Config:
         from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        }
 
 
 class MealSearchResult(BaseModel):
