@@ -92,6 +92,16 @@ async def get_logs(user_id: Annotated[str, Depends(get_current_user)],
     return model.get_logs(db, user_id)
 
 
+@app.get("/ingredient-suggestions")
+async def get_ingredient_suggestions(
+        user_id: Annotated[str, Depends(get_current_user)],
+        search: str = "",
+        limit: int = 10,
+        db: model.Session = Depends(get_db),
+):
+    return model.get_ingredient_suggestions(db, user_id, search, limit)
+
+
 @app.get("/")
 async def root():
     return {"Hello": "World!"}

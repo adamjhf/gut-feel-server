@@ -2,8 +2,9 @@ import json
 import os
 from datetime import datetime
 
-from pydantic import BaseModel, AwareDatetime
+from pydantic import BaseModel
 from sqlalchemy import (
+    JSON,
     URL,
     Boolean,
     Column,
@@ -11,6 +12,7 @@ from sqlalchemy import (
     Integer,
     String,
     create_engine,
+    desc,
     func,
 )
 from sqlalchemy.ext.declarative import declarative_base
@@ -179,3 +181,19 @@ def get_logs(db: Session, user_id: str) -> list[FoodLogModel | StoolLogModel]:
     ],
                   key=lambda x: x.entryTime,
                   reverse=True)
+
+
+def get_ingredient_suggestions(db: Session,
+                               user_id: str,
+                               search: str = "",
+                               limit: int = 10):
+    subq = db.query(func.json_array_elements_text(FoodLog.ingredients.cast(JSON)) \
+                 .label("ingredient")) \
+        .filter(FoodLog.user_id == user_id) \
+        .subquery()
+    q = db.query(subq) \
+        .filter(subq.c.ingredient.ilike(f"%{search}%")) \
+        .group_by(subq.c.ingredient) \
+        .order_by(desc(func.count(subq.c.ingredient))) \
+        .limit(limit)
+    return [i.ingredient for i in q.all()]
