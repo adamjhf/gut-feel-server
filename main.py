@@ -107,6 +107,13 @@ async def root():
     return {"Hello": "World!"}
 
 
+@app.middleware("http")
+async def add_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "max-age=86400"  # 24 hours
+    return response
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request,
                                        exc: RequestValidationError):
