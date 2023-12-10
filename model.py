@@ -63,6 +63,21 @@ class FoodLogModel(BaseModel):
         }
 
 
+class SymptomLogModel(BaseModel):
+    type: str
+    entryTime: datetime
+    createdTime: datetime
+    lastModifiedTime: datetime
+    deleted: bool
+    symptoms: dict[str, int]
+
+    class Config:
+        from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        }
+
+
 class MealSearchResult(BaseModel):
     meal: str
     ingredients: list[str]
@@ -88,6 +103,17 @@ class FoodLog(Base):
     last_modified_time = Column(DateTime)
     meal = Column(String)
     ingredients = Column(String)
+    deleted = Column(Boolean)
+
+
+class SymptomLog(Base):
+    __tablename__ = "symptom_logs"
+
+    user_id = Column(String, primary_key=True)
+    entry_time = Column(DateTime)
+    created_time = Column(DateTime, primary_key=True)
+    last_modified_time = Column(DateTime)
+    symptoms = Column(String)
     deleted = Column(Boolean)
 
 
@@ -128,6 +154,25 @@ def upsert_food_log(db: Session,
         db.commit()
 
 
+def upsert_symptom_log(db: Session,
+                       user_id: str,
+                       log: SymptomLogModel,
+                       commit: bool = True) -> None:
+    if len(log.symptoms) == 0:
+        raise Exception("symptoms list cannot be empty")
+    db_log = SymptomLog(
+        user_id=user_id,
+        entry_time=log.entryTime,
+        created_time=log.createdTime,
+        last_modified_time=log.lastModifiedTime,
+        symptoms=json.dumps(log.symptoms),
+        deleted=log.deleted,
+    )
+    db.merge(db_log)
+    if commit:
+        db.commit()
+
+
 def get_meal_list(db: Session, search: str,
                   user_id: str) -> list[MealSearchResult]:
     row_num = func.row_number() \
@@ -148,21 +193,28 @@ def get_meal_list(db: Session, search: str,
     ]
 
 
-def upsert_logs(db: Session, user_id: str,
-                logs: list[FoodLogModel | StoolLogModel]) -> None:
+def upsert_logs(
+        db: Session, user_id: str,
+        logs: list[FoodLogModel | StoolLogModel | SymptomLogModel]) -> None:
     for log in logs:
         if isinstance(log, StoolLogModel):
             upsert_stool_log(db, user_id, log, False)
         elif isinstance(log, FoodLogModel):
             upsert_food_log(db, user_id, log, False)
+        elif isinstance(log, SymptomLogModel):
+            upsert_symptom_log(db, user_id, log, False)
         else:
             raise Exception("Invalid log type")
     db.commit()
 
 
-def get_logs(db: Session, user_id: str) -> list[FoodLogModel | StoolLogModel]:
+def get_logs(
+        db: Session,
+        user_id: str) -> list[FoodLogModel | StoolLogModel | SymptomLogModel]:
     stool_logs = db.query(StoolLog).filter(StoolLog.user_id == user_id).all()
     food_logs = db.query(FoodLog).filter(FoodLog.user_id == user_id).all()
+    symptom_logs = db.query(SymptomLog).filter(
+        SymptomLog.user_id == user_id).all()
     return sorted([
         StoolLogModel(type="stool",
                       entryTime=s.entry_time,
@@ -178,6 +230,13 @@ def get_logs(db: Session, user_id: str) -> list[FoodLogModel | StoolLogModel]:
                      meal=f.meal,
                      ingredients=json.loads(f.ingredients),
                      deleted=f.deleted) for f in food_logs
+    ] + [
+        SymptomLogModel(type="symptom",
+                        entryTime=s.entry_time,
+                        createdTime=s.created_time,
+                        lastModifiedTime=s.last_modified_time,
+                        symptoms=json.loads(s.symptoms),
+                        deleted=s.deleted) for s in symptom_logs
     ],
                   key=lambda x: x.entryTime,
                   reverse=True)

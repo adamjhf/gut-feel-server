@@ -70,6 +70,14 @@ async def upsert_food_log(user_id: Annotated[str,
     model.upsert_food_log(db, user_id, log)
 
 
+@app.put("/symptom-log")
+async def upsert_symptom_log(user_id: Annotated[str,
+                                                Depends(get_current_user)],
+                             log: model.SymptomLogModel,
+                             db: model.Session = Depends(get_db)):
+    model.upsert_symptom_log(db, user_id, log)
+
+
 @app.get("/meal-list")
 async def get_meal_list(
         response: Response,
@@ -83,7 +91,8 @@ async def get_meal_list(
 
 @app.put("/logs")
 async def upsert_logs(user_id: Annotated[str, Depends(get_current_user)],
-                      logs: list[model.FoodLogModel | model.StoolLogModel],
+                      logs: list[model.FoodLogModel | model.StoolLogModel
+                                 | model.SymptomLogModel],
                       db: model.Session = Depends(get_db)):
     model.upsert_logs(db, user_id, logs)
 
