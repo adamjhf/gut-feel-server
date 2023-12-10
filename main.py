@@ -3,7 +3,7 @@ import os
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, FastAPI, HTTPException, Request, status  # type: ignore
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status  # type: ignore
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse  # type: ignore
 from fastapi.security import OAuth2PasswordBearer  # type: ignore
@@ -72,10 +72,12 @@ async def upsert_food_log(user_id: Annotated[str,
 
 @app.get("/meal-list")
 async def get_meal_list(
+        response: Response,
         user_id: Annotated[str, Depends(get_current_user)],
         search: str = "",
         db: model.Session = Depends(get_db),
 ):
+    response.headers["Cache-Control"] = "max-age=86400"  # 24 hours
     return model.get_meal_list(db, search, user_id)
 
 
@@ -94,24 +96,19 @@ async def get_logs(user_id: Annotated[str, Depends(get_current_user)],
 
 @app.get("/ingredient-suggestions")
 async def get_ingredient_suggestions(
+        response: Response,
         user_id: Annotated[str, Depends(get_current_user)],
         search: str = "",
         limit: int = 10,
         db: model.Session = Depends(get_db),
 ):
+    response.headers["Cache-Control"] = "max-age=86400"  # 24 hours
     return model.get_ingredient_suggestions(db, user_id, search, limit)
 
 
 @app.get("/")
 async def root():
     return {"Hello": "World!"}
-
-
-@app.middleware("http")
-async def add_headers(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["Cache-Control"] = "max-age=86400"  # 24 hours
-    return response
 
 
 @app.exception_handler(RequestValidationError)
