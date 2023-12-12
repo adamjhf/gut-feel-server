@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from sqlalchemy import (
     JSON,
-    URL,
+    URL,  # type: ignore
     Boolean,
     Column,
     DateTime,
@@ -20,10 +20,11 @@ from sqlalchemy.orm import Session, sessionmaker
 
 url_object = URL.create(
     "postgresql+psycopg",
-    username="postgres",
-    password=os.environ['PGPASSWORD'],
-    host="freeth.postgres.database.azure.com",
-    database="gutfeel_dev",
+    username=os.environ["PGUSER"],
+    password=os.environ["PGPASSWORD"],
+    host=os.environ["PGHOST"],
+    database=os.environ["PGDATABASE"],
+    port=os.environ["PGPORT"],
 )
 
 engine = create_engine(url_object)
