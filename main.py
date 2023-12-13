@@ -3,7 +3,7 @@ import os
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status  # type: ignore
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response, status  # type: ignore
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse  # type: ignore
 from fastapi.security import OAuth2PasswordBearer  # type: ignore
@@ -23,6 +23,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 jwks_url = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"
 project_id = str(os.getenv("PROJECT_ID"))
 jwk_client = jwt.PyJWKClient(jwks_url)
+
+api = APIRouter(prefix="/api", dependencies=[Depends(oauth2_scheme)])
 
 
 def get_db():
@@ -54,7 +56,7 @@ async def get_current_user(
         ) from None
 
 
-@app.put("/stool-log")
+@api.put("/stool-log")
 async def upsert_stool_log(user_id: Annotated[str,
                                               Depends(get_current_user)],
                            log: model.StoolLogModel,
@@ -62,7 +64,7 @@ async def upsert_stool_log(user_id: Annotated[str,
     model.upsert_stool_log(db, user_id, log)
 
 
-@app.put("/food-log")
+@api.put("/food-log")
 async def upsert_food_log(user_id: Annotated[str,
                                              Depends(get_current_user)],
                           log: model.FoodLogModel,
@@ -70,7 +72,7 @@ async def upsert_food_log(user_id: Annotated[str,
     model.upsert_food_log(db, user_id, log)
 
 
-@app.put("/symptom-log")
+@api.put("/symptom-log")
 async def upsert_symptom_log(user_id: Annotated[str,
                                                 Depends(get_current_user)],
                              log: model.SymptomLogModel,
@@ -78,7 +80,7 @@ async def upsert_symptom_log(user_id: Annotated[str,
     model.upsert_symptom_log(db, user_id, log)
 
 
-@app.get("/meal-list")
+@api.get("/meal-list")
 async def get_meal_list(
         response: Response,
         user_id: Annotated[str, Depends(get_current_user)],
@@ -89,7 +91,7 @@ async def get_meal_list(
     return model.get_meal_list(db, search, user_id)
 
 
-@app.put("/logs")
+@api.put("/logs")
 async def upsert_logs(user_id: Annotated[str, Depends(get_current_user)],
                       logs: list[model.FoodLogModel | model.StoolLogModel
                                  | model.SymptomLogModel],
@@ -97,13 +99,13 @@ async def upsert_logs(user_id: Annotated[str, Depends(get_current_user)],
     model.upsert_logs(db, user_id, logs)
 
 
-@app.get("/logs")
+@api.get("/logs")
 async def get_logs(user_id: Annotated[str, Depends(get_current_user)],
                    db: model.Session = Depends(get_db)):
     return model.get_logs(db, user_id)
 
 
-@app.get("/ingredient-suggestions")
+@api.get("/ingredient-suggestions")
 async def get_ingredient_suggestions(
         response: Response,
         user_id: Annotated[str, Depends(get_current_user)],
@@ -129,6 +131,8 @@ async def validation_exception_handler(request: Request,
     return JSONResponse(content=content,
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
+
+app.include_router(api)
 
 if __name__ == "__main__":
     import uvicorn
