@@ -34,7 +34,6 @@ Base = declarative_base()
 
 
 class StoolLogModel(BaseModel):
-    type: str
     entryTime: datetime
     createdTime: datetime
     lastModifiedTime: datetime
@@ -49,7 +48,6 @@ class StoolLogModel(BaseModel):
 
 
 class FoodLogModel(BaseModel):
-    type: str
     entryTime: datetime
     createdTime: datetime
     lastModifiedTime: datetime
@@ -65,7 +63,6 @@ class FoodLogModel(BaseModel):
 
 
 class SymptomLogModel(BaseModel):
-    type: str
     entryTime: datetime
     createdTime: datetime
     lastModifiedTime: datetime
@@ -77,6 +74,15 @@ class SymptomLogModel(BaseModel):
         json_encoders = {
             datetime: lambda v: v.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         }
+
+
+class LogEntriesModel(BaseModel):
+    stool: list[StoolLogModel]
+    food: list[FoodLogModel]
+    symptom: list[SymptomLogModel]
+
+    class Config:
+        from_attributes = True
 
 
 class MealSearchResult(BaseModel):
@@ -194,53 +200,48 @@ def get_meal_list(db: Session, search: str,
     ]
 
 
-def upsert_logs(
-        db: Session, user_id: str,
-        logs: list[FoodLogModel | StoolLogModel | SymptomLogModel]) -> None:
-    for log in logs:
-        if isinstance(log, StoolLogModel):
-            upsert_stool_log(db, user_id, log, False)
-        elif isinstance(log, FoodLogModel):
-            upsert_food_log(db, user_id, log, False)
-        elif isinstance(log, SymptomLogModel):
-            upsert_symptom_log(db, user_id, log, False)
-        else:
-            raise Exception("Invalid log type")
+def upsert_logs(db: Session, user_id: str, logs: LogEntriesModel) -> None:
+    for log in logs.stool:
+        upsert_stool_log(db, user_id, log, False)
+    for log in logs.food:
+        upsert_food_log(db, user_id, log, False)
+    for log in logs.symptom:
+        upsert_symptom_log(db, user_id, log, False)
     db.commit()
 
 
 def get_logs(
-        db: Session,
-        user_id: str) -> list[FoodLogModel | StoolLogModel | SymptomLogModel]:
+    db: Session, user_id: str
+) -> dict[str, list[StoolLogModel] | list[FoodLogModel]
+          | list[SymptomLogModel]]:
     stool_logs = db.query(StoolLog).filter(StoolLog.user_id == user_id).all()
     food_logs = db.query(FoodLog).filter(FoodLog.user_id == user_id).all()
     symptom_logs = db.query(SymptomLog).filter(
         SymptomLog.user_id == user_id).all()
-    return sorted([
-        StoolLogModel(type="stool",
-                      entryTime=s.entry_time,
-                      createdTime=s.created_time,
-                      lastModifiedTime=s.last_modified_time,
-                      bristolType=s.bristol_type,
-                      deleted=s.deleted) for s in stool_logs
-    ] + [
-        FoodLogModel(type="food",
-                     entryTime=f.entry_time,
-                     createdTime=f.created_time,
-                     lastModifiedTime=f.last_modified_time,
-                     meal=f.meal,
-                     ingredients=json.loads(f.ingredients),
-                     deleted=f.deleted) for f in food_logs
-    ] + [
-        SymptomLogModel(type="symptom",
-                        entryTime=s.entry_time,
-                        createdTime=s.created_time,
-                        lastModifiedTime=s.last_modified_time,
-                        symptoms=json.loads(s.symptoms),
-                        deleted=s.deleted) for s in symptom_logs
-    ],
-                  key=lambda x: x.entryTime,
-                  reverse=True)
+    return {
+        "stool": [
+            StoolLogModel(entryTime=s.entry_time,
+                          createdTime=s.created_time,
+                          lastModifiedTime=s.last_modified_time,
+                          bristolType=s.bristol_type,
+                          deleted=s.deleted) for s in stool_logs
+        ],
+        "food": [
+            FoodLogModel(entryTime=f.entry_time,
+                         createdTime=f.created_time,
+                         lastModifiedTime=f.last_modified_time,
+                         meal=f.meal,
+                         ingredients=json.loads(f.ingredients),
+                         deleted=f.deleted) for f in food_logs
+        ],
+        "symptom": [
+            SymptomLogModel(entryTime=s.entry_time,
+                            createdTime=s.created_time,
+                            lastModifiedTime=s.last_modified_time,
+                            symptoms=json.loads(s.symptoms),
+                            deleted=s.deleted) for s in symptom_logs
+        ]
+    }
 
 
 def get_ingredient_suggestions(db: Session,

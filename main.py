@@ -93,8 +93,7 @@ async def get_meal_list(
 
 @api.put("/logs")
 async def upsert_logs(user_id: Annotated[str, Depends(get_current_user)],
-                      logs: list[model.FoodLogModel | model.StoolLogModel
-                                 | model.SymptomLogModel],
+                      logs: model.LogEntriesModel,
                       db: model.Session = Depends(get_db)):
     model.upsert_logs(db, user_id, logs)
 
