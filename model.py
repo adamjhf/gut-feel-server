@@ -1,11 +1,13 @@
 import json
 import os
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel
 from sqlalchemy import (
     JSON,
     URL,  # type: ignore
+    Uuid,
     Boolean,
     Column,
     DateTime,
@@ -33,11 +35,11 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-class StoolLogModel(BaseModel):
+class LogModel(BaseModel):
+    id: UUID
     entryTime: datetime
     createdTime: datetime
     lastModifiedTime: datetime
-    bristolType: int
     deleted: bool
 
     class Config:
@@ -47,33 +49,17 @@ class StoolLogModel(BaseModel):
         }
 
 
-class FoodLogModel(BaseModel):
-    entryTime: datetime
-    createdTime: datetime
-    lastModifiedTime: datetime
-    deleted: bool
+class StoolLogModel(LogModel):
+    bristolType: int
+
+
+class FoodLogModel(LogModel):
     meal: str
     ingredients: list[str]
 
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            datetime: lambda v: v.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-        }
 
-
-class SymptomLogModel(BaseModel):
-    entryTime: datetime
-    createdTime: datetime
-    lastModifiedTime: datetime
-    deleted: bool
+class SymptomLogModel(LogModel):
     symptoms: dict[str, int]
-
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            datetime: lambda v: v.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-        }
 
 
 class LogEntriesModel(BaseModel):
@@ -92,10 +78,10 @@ class MealSearchResult(BaseModel):
 
 class StoolLog(Base):
     __tablename__ = "stool_logs"
-
-    user_id = Column(String, primary_key=True)
+    id = Column(Uuid, primary_key=True, default=func.uuid_generate_v4())
+    user_id = Column(String)
     entry_time = Column(DateTime)
-    created_time = Column(DateTime, primary_key=True)
+    created_time = Column(DateTime)
     last_modified_time = Column(DateTime)
     bristol_type = Column(Integer)
     deleted = Column(Boolean)
@@ -104,9 +90,10 @@ class StoolLog(Base):
 class FoodLog(Base):
     __tablename__ = "food_logs"
 
-    user_id = Column(String, primary_key=True)
+    id = Column(Uuid, primary_key=True, default=func.uuid_generate_v4())
+    user_id = Column(String)
     entry_time = Column(DateTime)
-    created_time = Column(DateTime, primary_key=True)
+    created_time = Column(DateTime)
     last_modified_time = Column(DateTime)
     meal = Column(String)
     ingredients = Column(String)
@@ -116,9 +103,10 @@ class FoodLog(Base):
 class SymptomLog(Base):
     __tablename__ = "symptom_logs"
 
-    user_id = Column(String, primary_key=True)
+    id = Column(Uuid, primary_key=True, default=func.uuid_generate_v4())
+    user_id = Column(String)
     entry_time = Column(DateTime)
-    created_time = Column(DateTime, primary_key=True)
+    created_time = Column(DateTime)
     last_modified_time = Column(DateTime)
     symptoms = Column(String)
     deleted = Column(Boolean)
@@ -129,6 +117,7 @@ def upsert_stool_log(db: Session,
                      log: StoolLogModel,
                      commit: bool = True) -> None:
     db_log = StoolLog(
+        id=log.id,
         user_id=user_id,
         entry_time=log.entryTime,
         created_time=log.createdTime,
@@ -148,6 +137,7 @@ def upsert_food_log(db: Session,
     if log.meal == "" or len(log.ingredients) == 0:
         raise Exception("meal or ingredients cannot be empty")
     db_log = FoodLog(
+        id=log.id,
         user_id=user_id,
         entry_time=log.entryTime,
         created_time=log.createdTime,
@@ -168,6 +158,7 @@ def upsert_symptom_log(db: Session,
     if len(log.symptoms) == 0:
         raise Exception("symptoms list cannot be empty")
     db_log = SymptomLog(
+        id=log.id,
         user_id=user_id,
         entry_time=log.entryTime,
         created_time=log.createdTime,
@@ -220,14 +211,16 @@ def get_logs(
         SymptomLog.user_id == user_id).all()
     return {
         "stool": [
-            StoolLogModel(entryTime=s.entry_time,
+            StoolLogModel(id=s.id,
+                          entryTime=s.entry_time,
                           createdTime=s.created_time,
                           lastModifiedTime=s.last_modified_time,
                           bristolType=s.bristol_type,
                           deleted=s.deleted) for s in stool_logs
         ],
         "food": [
-            FoodLogModel(entryTime=f.entry_time,
+            FoodLogModel(id=f.id,
+                         entryTime=f.entry_time,
                          createdTime=f.created_time,
                          lastModifiedTime=f.last_modified_time,
                          meal=f.meal,
@@ -235,7 +228,8 @@ def get_logs(
                          deleted=f.deleted) for f in food_logs
         ],
         "symptom": [
-            SymptomLogModel(entryTime=s.entry_time,
+            SymptomLogModel(id=s.id,
+                            entryTime=s.entry_time,
                             createdTime=s.created_time,
                             lastModifiedTime=s.last_modified_time,
                             symptoms=json.loads(s.symptoms),
