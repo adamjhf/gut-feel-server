@@ -202,13 +202,19 @@ def upsert_logs(db: Session, user_id: str, logs: LogEntriesModel) -> None:
 
 
 def get_logs(
-    db: Session, user_id: str
+    db: Session,
+    user_id: str,
+    since: datetime = datetime.min
 ) -> dict[str, list[StoolLogModel] | list[FoodLogModel]
           | list[SymptomLogModel]]:
-    stool_logs = db.query(StoolLog).filter(StoolLog.user_id == user_id).all()
-    food_logs = db.query(FoodLog).filter(FoodLog.user_id == user_id).all()
+    stool_logs = db.query(StoolLog).filter(
+        StoolLog.user_id == user_id,
+        StoolLog.last_modified_time >= since).all()
+    food_logs = db.query(FoodLog).filter(
+        FoodLog.user_id == user_id, FoodLog.last_modified_time >= since).all()
     symptom_logs = db.query(SymptomLog).filter(
-        SymptomLog.user_id == user_id).all()
+        SymptomLog.user_id == user_id,
+        SymptomLog.last_modified_time >= since).all()
     return {
         "stool": [
             StoolLogModel(id=s.id,

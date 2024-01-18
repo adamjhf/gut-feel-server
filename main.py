@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import datetime
 from typing import Annotated
 
 import jwt
@@ -100,8 +101,9 @@ async def upsert_logs(user_id: Annotated[str, Depends(get_current_user)],
 
 @api.get("/logs")
 async def get_logs(user_id: Annotated[str, Depends(get_current_user)],
-                   db: model.Session = Depends(get_db)):
-    return model.get_logs(db, user_id)
+                   db: model.Session = Depends(get_db),
+                   since: datetime = datetime.min):
+    return model.get_logs(db, user_id, since)
 
 
 @api.get("/ingredient-suggestions")
