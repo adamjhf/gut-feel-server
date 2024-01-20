@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import (
     JSON,
     URL,  # type: ignore
-    Uuid,
+    Uuid,  # type: ignore
     Boolean,
     Column,
     DateTime,
@@ -51,6 +51,7 @@ class LogModel(BaseModel):
 
 class StoolLogModel(LogModel):
     bristolType: int
+    tags: list[str]
 
 
 class FoodLogModel(LogModel):
@@ -84,6 +85,7 @@ class StoolLog(Base):
     created_time = Column(DateTime)
     last_modified_time = Column(DateTime)
     bristol_type = Column(Integer)
+    tags = Column(String)
     deleted = Column(Boolean)
 
 
@@ -123,6 +125,7 @@ def upsert_stool_log(db: Session,
         created_time=log.createdTime,
         last_modified_time=log.lastModifiedTime,
         bristol_type=log.bristolType,
+        tags=json.dumps(log.tags),
         deleted=log.deleted,
     )
     db.merge(db_log)
@@ -222,6 +225,7 @@ def get_logs(
                           createdTime=s.created_time,
                           lastModifiedTime=s.last_modified_time,
                           bristolType=s.bristol_type,
+                          tags=json.loads(s.tags),
                           deleted=s.deleted) for s in stool_logs
         ],
         "food": [
