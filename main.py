@@ -25,7 +25,7 @@ jwks_url = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@syste
 project_id = str(os.getenv("PROJECT_ID"))
 jwk_client = jwt.PyJWKClient(jwks_url)
 
-api = APIRouter(prefix="/api", dependencies=[Depends(oauth2_scheme)])
+api = APIRouter(prefix="/api/v1", dependencies=[Depends(oauth2_scheme)])
 
 
 def get_db():
